@@ -2,130 +2,152 @@ const axios = require("axios");
 
 module.exports.config = {
   name: "jan",
-  version: "5.0.0",
+  version: "1.4.5",
   hasPermssion: 0,
   credits: "Aminul Sordar",
-  description: {
-    en: "Chat with Jan - smart AI + random SMS + continuous reply",
-    vi: "Trò chuyện với Jan - AI thông minh + tin nhắn ngẫu nhiên + trả lời liên tục",
-    default: "jan এর সাথে চ্যাট করো - smart AI + random sms + continuous reply"
-  },
-  commandCategory: "fun",
-  usages: "jan [message]",
+  description: "💬 Jan AI চ্যাটবট: প্রশ্ন করো, শেখাও বা মজা করো!",
+  commandCategory: "ai",
+  usages: "[message | teach প্রশ্ন - উত্তর | count]",
   cooldowns: 3
 };
 
 module.exports.languages = {
   en: {
-    notEnoughWords: "Please type more than 3 characters for me to answer.",
-    apiError: "❌ Could not get answer from server, please try again later!",
-    defaultAnswer: "❌ I haven't learned this yet, teach me! 👀"
+    missingInput: "⚠️ Please enter a question.",
+    invalidFormat: "❌ Invalid format! Use:\n/jan teach Question - Answer",
+    serverFail: "🚫 Server error! Try again later.",
+    notLearned: "🤖 I haven't learned this yet. Please teach me!",
+    countInfo: (q, a) =>
+      `📊 Jan Knowledge:\n\n🧠 Total Questions: ${q}\n💬 Total Answers: ${a}\n\n💡 Help me grow smarter by teaching me!`
   },
-  vi: {
-    notEnoughWords: "Vui lòng nhập nhiều hơn 3 ký tự để tôi trả lời.",
-    apiError: "❌ Không thể lấy câu trả lời từ máy chủ, vui lòng thử lại sau!",
-    defaultAnswer: "❌ Tôi chưa học được điều này, hãy dạy tôi! 👀"
-  },
-  default: {
-    notEnoughWords: "তিনটি অক্ষরের বেশি লিখুন যাতে আমি উত্তর দিতে পারি।",
-    apiError: "❌ সার্ভার থেকে উত্তর পাওয়া যায়নি, পরে আবার চেষ্টা করুন!",
-    defaultAnswer: "❌ আমি এখনো এটা শিখিনি, আমাকে শেখাও! 👀"
+  bn: {
+    missingInput: "⚠️ অনুগ্রহ করে একটি প্রশ্ন লিখুন!",
+    invalidFormat: "❌ ভুল ফরম্যাট!\nসঠিকভাবে লিখুন:\n/jan teach প্রশ্ন - উত্তর",
+    serverFail: "🚫 সার্ভারে সমস্যা হয়েছে। পরে আবার চেষ্টা করুন।",
+    notLearned: "🤖 আমি এটা এখনো শিখিনি। আমাকে শেখাও! 🧠",
+    countInfo: (q, a) =>
+      `📊 জান-এর শেখা তথ্য:\n\n📌 মোট প্রশ্ন: ${q}\n📌 মোট উত্তর: ${a}\n\n💡 আমাকে শেখালে আমি আরও স্মার্ট হবো!`
   }
 };
 
-module.exports.handleEvent = async function({ api, event, getLang }) {
-  const { body = "", threadID, messageID, senderID } = event;
-  const lang = getLang ? getLang() : "default";
+module.exports.run = async function ({ api, event, args, getText }) {
+  const { threadID, messageID } = event;
+  const input = args.join(" ").trim();
+  const sub = args[0]?.toLowerCase();
 
-  const lower = body.toLowerCase();
-  const triggerWords = ["jan", "bby", "baby", "sona"];
-  if (!triggerWords.some(word => lower.startsWith(word))) return;
+  if (!input) return api.sendMessage(getText("missingInput"), threadID, messageID);
 
-  // Extract question part: e.g. "jan কি করো" → "কি করো"
-  const args = body.trim().split(/\s+/);
-  const question = args.slice(1).join(" ").trim();
-
-  if (question.length > 3) {
-    // Ask API for answer
+  if (sub === "count") {
     try {
-      const res = await axios.get(`https://jan-api-by-aminul-sordar.vercel.app/answer/${encodeURIComponent(body)}`);
-      const answer = res.data.answer || this.languages[lang].defaultAnswer;
-      return api.sendMessage(`🤖 ${answer}`, threadID, (err, info) => {
-        if (!err) {
-          global.client.handleReply.push({
-            name: module.exports.config.name,
-            messageID: info.messageID,
-            author: senderID
-          });
-        }
-      }, messageID);
-    } catch (e) {
-      console.error("API error:", e.message);
-      return api.sendMessage(this.languages[lang].apiError, threadID, messageID);
+      const res = await axios.get("https://jan-api-by-aminul-sordar.vercel.app/count");
+      const { questions, answers } = res.data;
+      return api.sendMessage(getText("countInfo", questions, answers), threadID, messageID);
+    } catch {
+      return api.sendMessage(getText("serverFail"), threadID, messageID);
     }
   }
 
-  // If no valid question, send random reply
-  const replies = [
-    "হ্যাঁ 😀, আমি এখানে আছি",
-    "কেমন আছো?",
-    "বলো জান কি করতে পারি তোমার জন্য",
-    `তুমি বলেছো: "${body}"? কিউট!`,
-    "I love you 💝",
-    "ভালোবাসি তোমাকে 🤖",
-    "Hi, I'm messenger Bot, I can help you.?🤖",
-    "Use callad to contact admin!",
-    "Hi, Don't disturb 🤖 🚘 Now I'm going to Feni, Bangladesh..bye",
-    "Hi, 🤖 I can help you~~~~",
-    "আমি এখন আমিনুল বসের সাথে বিজি আছি",
-    "আমাকে না ডেকে আমার বসকে ডাকো এই নেও LINK :- https://www.facebook.com/100071880593545",
-    "Hmmm sona 🖤 meye hoile kule aso ar sele hoile kule new 🫂😘",
-    "Yah This Bot creator : PRINCE RID((A.R))     link => https://www.facebook.com/100071880593545",
-    "হা বলো, শুনছি আমি 🤸‍♂️🫂",
-    "Ato daktasen kn bujhlam na 😡",
-    "jan bal falaba,🙂",
-    "ask amr mon vlo nei dakben na🙂",
-    "Hmm jan ummah😘😘",
-    "jang hanga korba 🙂🖤",
-    "iss ato dako keno loj্জা লাগে to 🫦🙈",
-    "suna tomare amar valo lage,🙈😽"
-  ];
+  if (sub === "teach") {
+    const teachText = args.slice(1).join(" ");
+    if (!teachText.includes(" - ")) return api.sendMessage(getText("invalidFormat"), threadID, messageID);
 
-  const replyText = replies[Math.floor(Math.random() * replies.length)];
-  return api.sendMessage(replyText, threadID, (err, info) => {
-    if (!err) {
-      global.client.handleReply.push({
-        name: module.exports.config.name,
-        messageID: info.messageID,
-        author: senderID
-      });
+    try {
+      const res = await axios.post("https://jan-api-by-aminul-sordar.vercel.app/teach", { text: teachText });
+      return api.sendMessage(`✅ ${res.data.message}`, threadID, messageID);
+    } catch {
+      return api.sendMessage(getText("serverFail"), threadID, messageID);
     }
-  }, messageID);
-};
-
-module.exports.handleReply = async function({ api, event, handleReply, getLang }) {
-  const { senderID, body, threadID, messageID } = event;
-  const lang = getLang ? getLang() : "default";
-
-  if (senderID !== handleReply.author) return;
+  }
 
   try {
-    const res = await axios.get(`https://jan-api-by-aminul-sordar.vercel.app/answer/${encodeURIComponent(body)}`);
-    const answer = res.data.answer || this.languages[lang].defaultAnswer;
+    const res = await axios.get(`https://jan-api-by-aminul-sordar.vercel.app/answer/${encodeURIComponent(input)}`);
+    const answer = res.data.answer || getText("notLearned");
 
     return api.sendMessage(`🤖 ${answer}`, threadID, (err, info) => {
       if (!err) {
         global.client.handleReply.push({
-          name: module.exports.config.name,
-          messageID: info.messageID,
-          author: senderID
+          name: this.config.name,
+          messageID: info.messageID
         });
       }
     }, messageID);
-  } catch (e) {
-    console.error("API error:", e.message);
-    return api.sendMessage(this.languages[lang].apiError, threadID, messageID);
+  } catch {
+    return api.sendMessage(getText("serverFail"), threadID, messageID);
   }
 };
 
-module.exports.run = () => {};
+module.exports.handleEvent = async function ({ api, event, getText }) {
+  const { threadID, messageID, body } = event;
+  if (!body) return;
+
+  const text = body.toLowerCase().trim();
+  const triggers = ["jan", "janu", "bby", "baby", "বট", "babu"];
+  const matched = triggers.find(prefix => text.startsWith(prefix));
+  if (!matched) return;
+
+  const parts = text.split(" ");
+  const onlyTrigger = parts.length === 1;
+
+  if (onlyTrigger) {
+    // যদি শুধু ডাক হয়, র‍্যান্ডম SMS দিবে
+    const randomReplies = [
+      "হ্যাঁ জান, ডাকছো? 😚",
+      "জান বলো কিরে? 🫂",
+      "তোমার অপেক্ষায় ছিলাম 😌",
+      "ভালোবাসি তোমাকে 💖",
+      "আমি তো তোমারই জান 🥰",
+      "Hmm কে ডাকছে জান কে 🤭",
+      "সোনা জান বলো, কথা শুনছি 🐰",
+      "I love you too 😽",
+      "জান একটু ঘুমাচ্ছিলাম, এখন উঠলাম তোমার জন্য 💤💘",
+      "জান! এতবার ডাকো কেন? আমি তো পাশেই আছি 🫣"
+    ];
+    const reply = randomReplies[Math.floor(Math.random() * randomReplies.length)];
+
+    return api.sendMessage(reply, threadID, (err, info) => {
+      if (!err) {
+        global.client.handleReply.push({
+          name: this.config.name,
+          messageID: info.messageID
+        });
+      }
+    }, messageID);
+  }
+
+  // অন্যথায় API থেকে উত্তর দিবে
+  try {
+    const res = await axios.get(`https://jan-api-by-aminul-sordar.vercel.app/answer/${encodeURIComponent(text)}`);
+    const answer = res.data.answer || getText("notLearned");
+    return api.sendMessage(`💬 ${answer}`, threadID, (err, info) => {
+      if (!err) {
+        global.client.handleReply.push({
+          name: this.config.name,
+          messageID: info.messageID
+        });
+      }
+    }, messageID);
+  } catch {
+    return;
+  }
+};
+
+module.exports.handleReply = async function ({ api, event, getText }) {
+  const userInput = event.body.trim();
+
+  try {
+    const res = await axios.get(`https://jan-api-by-aminul-sordar.vercel.app/answer/${encodeURIComponent(userInput)}`);
+    const replyText = res.data.answer || getText("notLearned");
+
+    return api.sendMessage(`🤖 ${replyText}`, event.threadID, (err, info) => {
+      if (!err) {
+        global.client.handleReply.push({
+          name: this.config.name,
+          messageID: info.messageID
+        });
+      }
+    }, event.messageID);
+  } catch (err) {
+    console.error("handleReply error:", err.message);
+    return api.sendMessage(getText("serverFail"), event.threadID, event.messageID);
+  }
+};
