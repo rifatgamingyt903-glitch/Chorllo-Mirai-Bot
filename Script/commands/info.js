@@ -2,7 +2,7 @@ module.exports.config = {
 	name: "info",
 	version: "1.0.1", 
 	hasPermssion: 0,
-	credits: "Joshua Sy", //don't change the credits please
+	credits: "AMINUL-SORDAR", //don't change the credits please
 	description: "Admin and Bot info.",
 	commandCategory: "info",
 	cooldowns: 1,
@@ -22,7 +22,7 @@ const time = process.uptime(),
 		minutes = Math.floor((time % (60 * 60)) / 60),
 		seconds = Math.floor(time % 60);
 const moment = require("moment-timezone");
-var juswa = moment.tz("Asia/Manila").format("『D/MM/YYYY』 【hh:mm:ss】");
+var juswa = moment.tz("Asia/Dhaka").format("『D/MM/YYYY』 【hh:mm:ss】");
 var link = ["https://i.imgur.com/1QaosHO.jpg", 
             
             "https://i.imgur.com/1BurIt1.jpg", 
