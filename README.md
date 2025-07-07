@@ -11,9 +11,6 @@ Welcome to **Mirai-Bot**, a powerful, modular Facebook Messenger chatbot built o
 <p align="center">
     A simple Facebook Messenger Bot made by AMINUL-SORDAR
 
-           ![Repo Size](https://img.shields.io/github/repo-size/Aminulsordar/Mirai-Bot)
-![Issues](https://img.shields.io/github/issues/Aminulsordar/Mirai-Bot)
-![Pull Requests](https://img.shields.io/github/issues-pr/Aminulsordar/Mirai-Bot)
 
 ---
 
