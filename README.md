@@ -127,6 +127,8 @@ Aminul-sordar - [Facebook](https://facebook.com/100071880593545) - [GitHub](http
 -------------
 ## 🧠 Credits
 
+🧠 **Original Credit:** [MIRAI-BOT](https://github.com/m1raibot/miraiv2)
+
 - 👑 **Real Credit:** [Priyansh Rajput](https://github.com/PriyanshRajput)
 - 🤝 **Co-Credit:** Rajib (Islamic Cyber Chat)
 
