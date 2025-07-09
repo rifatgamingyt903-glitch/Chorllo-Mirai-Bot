@@ -1,93 +1,113 @@
-module.exports.config = {
-	name: "sing",
-	version: "1.0.7",
-	hasPermssion: 0,
-	credits: "Mirai Team",
-	description: "Phát nhạc thông qua link YouTube hoặc từ khoá tìm kiếm",
-	commandCategory: "media",
-	usages: "[link or content need search]",
-	cooldowns: 10,
-	dependencies: {
-		"ytdl-core": "",
-		"simple-youtube-api": "",
-		"fs-extra": ""
-	},
-	envConfig: {
-		"YOUTUBE_API": "AIzaSyB6pTkV2PM7yLVayhnjDSIM0cE_MbEtuvo"
-	}
+const axios = require("axios");
+const fs = require('fs')
+const baseApiUrl = async () => {
+  const base = await axios.get(
+`https://raw.githubusercontent.com/Blankid018/D1PT0/main/baseApiUrl.json`,
+  );
+  return base.data.api;
 };
-
-module.exports.languages = {
-	"vi": {
-		"overSizeAllow": "Không thể gửi file vì dung lượng lớn hơn 25MB.",
-		"returnError": "Đã xảy ra vấn đề khi đang xử lý request, lỗi: %1",
-		"cantProcess": "Không thể xử lý yêu cầu của bạn!",
-		"missingInput": "Phần tìm kiếm không được để trống!",
-		"returnList": "🎼 Có %1 kết quả trùng với từ khoá tìm kiếm của bạn: \n%2\nHãy reply(phản hồi) chọn một trong những tìm kiếm trên"
-	},
-	"en": {
-		"overSizeAllow": "Can't send fine because it's bigger than 25MB.",
-		"returnError": "Have some problem when handling request, error: %1",
-		"cantProcess": "Can't handle your request!",
-		"missingInput": "Search section must not be blank!",
-		"returnList": "🎼 Have %1 results with your imput: \n%2\nPlease reply choose 1 of these result"
-	}
+module.exports.config = {
+    name: "sing",
+    version: "2.1.0",
+    aliases: [ "music", "play"],
+    credits: "dipto",
+    countDown: 5,
+    hasPermssion: 0,
+    description: "Download audio from YouTube",
+    commandCategory: "media",
+    usages: "{pn} [<song name>|<song link>]:"+ "\n   Example:"+"\n{pn} chipi chipi chapa chapa"
+  }
+  module.exports.run = async ({api,args, event,commandName, message }) =>{
+    const checkurl = /^(?:https?:\/\/)?(?:m\.|www\.)?(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=|shorts\/))((\w|-){11})(?:\S+)?$/;
+    let videoID;
+    const urlYtb = checkurl.test(args[0]);
+     
+if (urlYtb) {
+  const match = args[0].match(checkurl);
+  videoID = match ? match[1] : null;
+        const { data: { title, downloadLink } } = await axios.get(
+          `${await baseApiUrl()}/ytDl3?link=${videoID}&format=mp3`
+        );
+    return  api.sendMessage({
+      body: title,
+      attachment: await dipto(downloadLink,'audio.mp3')
+    },event.threadID,()=>fs.unlinkSync('audio.mp3'),event.messageID)
 }
+    let keyWord = args.join(" ");
+    keyWord = keyWord.includes("?feature=share") ? keyWord.replace("?feature=share", "") : keyWord;
+    const maxResults = 6;
+    let result;
+    try {
+      result = ((await axios.get(`${await baseApiUrl()}/ytFullSearch?songName=${keyWord}`)).data).slice(0, maxResults);
+    } catch (err) {
+      return api.sendMessage("❌ An error occurred:"+err.message,event.threadID,event.messageID);
+    }
+    if (result.length == 0)
+      return api.sendMessage("⭕ No search results match the keyword:"+ keyWord,event.threadID,event.messageID);
+    let msg = "";
+    let i = 1;
+    const thumbnails = [];
+    for (const info of result) {
+thumbnails.push(diptoSt(info.thumbnail,'photo.jpg'));
+      msg += `${i++}. ${info.title}\nTime: ${info.time}\nChannel: ${info.channel.name}\n\n`;
+    }
+    api.sendMessage({
+      body: msg+ "Reply to this message with a number want to listen",
+      attachment: await Promise.all(thumbnails)
+    },event.threadID, (err, info) => {
+global.client.handleReply.push({
+        name: this.config.name,
+        messageID: info.messageID,
+        author: event.senderID,
+        result
+      });
+    },event.messageID);
+  }
+ module.exports.handleReply = async ({ event, api, handleReply }) => {
+    try {
+    const { result } = handleReply;
+    const choice = parseInt(event.body);
+    if (!isNaN(choice) && choice <= result.length && choice > 0) {
+      const infoChoice = result[choice - 1];
+      const idvideo = infoChoice.id;
+  const { data: { title, downloadLink ,quality} } = await axios.get(`${await baseApiUrl()}/ytDl3?link=${idvideo}&format=mp3`);
+    await api.unsendMessage(handleReply.messageID)
+        await  api.sendMessage({
+          body: `• Title: ${title}\n• Quality: ${quality}`,
+          attachment: await dipto(downloadLink,'audio.mp3')
+        },event.threadID ,
+       ()=>fs.unlinkSync('audio.mp3')
+      ,event.messageID)
+    } else {
+      api.sendMessage("Invalid choice. Please enter a number between 1 and 6.",event.threadID,event.messageID);
+    }
+    } catch (error) {
+      console.log(error);
+      api.sendMessage("⭕ Sorry, audio size was less than 26MB",event.threadID,event.messageID)
+    }   
+ };
+async function dipto(url,pathName) {
+  try {
+    const response = (await axios.get(url,{
+      responseType: "arraybuffer"
+    })).data;
 
-module.exports.handleReply = async function({ api, event, handleReply }) {
-	const ytdl = global.nodemodule["ytdl-core"];
-	const { createReadStream, createWriteStream, unlinkSync, statSync } = global.nodemodule["fs-extra"];
-	try {
-		ytdl(handleReply.link[event.body - 1])
-			.pipe(createWriteStream(__dirname + `/cache/${handleReply.link[event.body - 1]}.m4a`))
-			.on("close", () => {
-				if (statSync(__dirname + `/cache/${handleReply.link[event.body - 1]}.m4a`).size > 26214400) return api.sendMessage(getText("overSizeAllow"), event.threadID, () => unlinkSync(__dirname + `/cache/${handleReply.link[event.body - 1]}.m4a`), event.messageID);
-				else return api.sendMessage({attachment: createReadStream(__dirname + `/cache/${handleReply.link[event.body - 1]}.m4a`)}, event.threadID, () => unlinkSync(__dirname + `/cache/${handleReply.link[event.body - 1]}.m4a`), event.messageID)
-			})
-			.on("error", (error) => api.sendMessage(getText("returnError", error), event.threadID, event.messageID));
-	}
-	catch { api.sendMessage(getText("cantProcess"), event.threadID, event.messageID) }
-	return api.unsendMessage(handleReply.messageID);
+    fs.writeFileSync(pathName, Buffer.from(response));
+    return fs.createReadStream(pathName);
+  }
+  catch (err) {
+    throw err;
+  }
 }
-
-module.exports.run = async function({ api, event, args, getText }) {
-	const ytdl = global.nodemodule["ytdl-core"];
-	const YouTubeAPI = global.nodemodule["simple-youtube-api"];
-	const { createReadStream, createWriteStream, unlinkSync, statSync } = global.nodemodule["fs-extra"];
-	
-	const youtube = new YouTubeAPI(global.configModule[this.config.name].YOUTUBE_API);
-	
-	if (args.length == 0 || !args) return api.sendMessage(getText("missingInput"), event.threadID, event.messageID);
-	const keywordSearch = args.join(" ");
-	const videoPattern = /^(https?:\/\/)?(www\.)?(m\.)?(youtube\.com|youtu\.?be)\/.+$/gi;
-	const urlValid = videoPattern.test(args[0]);
-	
-	if (urlValid) {
-		try {
-			var id = args[0].split(/(vi\/|v=|\/v\/|youtu\.be\/|\/embed\/)/);
-            (id[2] !== undefined) ? id = id[2].split(/[^0-9a-z_\-]/i)[0] : id = id[0];
-			ytdl(args[0])
-				.pipe(createWriteStream(__dirname + `/cache/${id}.m4a`))
-				.on("close", () => {
-					if (statSync(__dirname + `/cache/${id}.m4a`).size > 26214400) return api.sendMessage(getText("overSizeAllow"), event.threadID, () => unlinkSync(__dirname + `/cache/${id}.m4a`), event.messageID);
-					else return api.sendMessage({attachment: createReadStream(__dirname + `/cache/${id}.m4a`)}, event.threadID, () => unlinkSync(__dirname + `/cache/${id}.m4a`) , event.messageID)
-				})
-				.on("error", (error) => api.sendMessage(getText("returnError", error), event.threadID, event.messageID));
-		}
-		catch { return api.sendMessage(getText("cantProcess"), event.threadID, event.messageID) }
-	}
-	else {
-		try {
-			var link = [], msg = "", num = 1;
-			let results = await youtube.searchVideos(keywordSearch, 5);
-			for (const value of results) {
-				if (typeof value.id !== 'undefined') {;
-					link.push(value.id);
-					msg += (`${num++}. ${value.title}\n`);
-				}
-			}
-			return api.sendMessage(getText("returnList", link.length, msg), event.threadID,(error, info) => global.client.handleReply.push({ name: this.config.name, messageID: info.messageID, author: event.senderID, link }), event.messageID);
-		}
-		catch (error) { return api.sendMessage(getText("returnError", JSON.stringify(error)), event.threadID, event.messageID) }
-	}
+async function diptoSt(url,pathName) {
+  try {
+    const response = await axios.get(url,{
+      responseType: "stream"
+    });
+    response.data.path = pathName;
+    return response.data;
+  }
+  catch (err) {
+    throw err;
+  }
 }
