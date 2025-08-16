@@ -1,96 +1,71 @@
 const axios = require("axios");
 
-async function getBaseApiUrl() {
-  try {
-    const res = await axios.get(
-      "https://raw.githubusercontent.com/itzaryan008/ERROR/refs/heads/main/raw/api.json"
-    );
-    return res.data.apis + "/gemini";
-  } catch (err) {
-    console.error("❌ Failed to fetch Gemini API:", err.message);
-    return null;
-  }
-}
-
 module.exports.config = {
-  name: "gemini",
-  version: "2.0.0",
-  hasPermssion: 0,
-  credits: "ArYAN - Decor by Aminul Sordar",
-  description: "🤖 Chat with Gemini AI using text or image input!",
-  commandCategory: "🤖 AI-Chat",
-  usages: "[prompt] | reply image",
-  cooldowns: 5,
-  dependencies: {
-    axios: ""
-  },
-  envConfig: {}
+    name: "gemini",
+    aliases: ["ai", "ask"],
+    version: "2.0.0",
+    author: "Aminul Sordar",
+    cooldowns: 5,
+    role: 0,
+    shortDescription: "Ask Gemini AI a question",
+    longDescription: "Ask Gemini AI a question using Aryan API and get a stylish response."
 };
 
 module.exports.languages = {
-  "vi": {
-    noPrompt: "⚠️ Vui lòng nhập nội dung hoặc trả lời một ảnh!",
-    errorAPI: "❌ Không thể kết nối tới API Gemini.",
-    noResponse: "🤖 Không có phản hồi từ Gemini.",
-    imageFailed: "🖼️ Lỗi khi xử lý ảnh với Gemini."
-  },
-  "en": {
-    noPrompt: "⚠️ Please provide a prompt or reply to an image!",
-    errorAPI: "❌ Failed to connect to Gemini API.",
-    noResponse: "🤖 No response from Gemini.",
-    imageFailed: "🖼️ Failed to process the image with Gemini."
-  }
-};
-
-module.exports.onLoad = function () {
-  console.log("✅ Gemini module loaded successfully.");
-};
-
-module.exports.handleReaction = function () { };
-module.exports.handleReply = function () { };
-module.exports.handleEvent = function () { };
-module.exports.handleSchedule = function () { };
-
-module.exports.run = async function ({ api, event, args, getText }) {
-  const BASE_API_URL = await getBaseApiUrl();
-  if (!BASE_API_URL) {
-    return api.sendMessage("🚨 " + getText("errorAPI"), event.threadID, event.messageID);
-  }
-
-  const prompt = args.join(" ").trim();
-
-  const isImageReply =
-    event.type === "message_reply" &&
-    event.messageReply.attachments?.length > 0 &&
-    event.messageReply.attachments[0].type === "photo";
-
-  // 🧩 Validate prompt or image
-  if (!prompt && !isImageReply) {
-    return api.sendMessage("💡 " + getText("noPrompt"), event.threadID, event.messageID);
-  }
-
-  // 🖼️ Handle image input
-  if (isImageReply) {
-    const imageUrl = event.messageReply.attachments[0].url;
-    try {
-      const res = await axios.get(
-        `${BASE_API_URL}?ask=${encodeURIComponent(prompt || "Describe this image")}&url=${encodeURIComponent(imageUrl)}`
-      );
-      const reply = res.data?.gemini || getText("noResponse");
-      return api.sendMessage(`🧠 Gemini Says:\n\n${reply}`, event.threadID, event.messageID);
-    } catch (err) {
-      console.error("❌ Gemini Image Error:", err.message);
-      return api.sendMessage("🚫 " + getText("imageFailed"), event.threadID, event.messageID);
+    en: {
+        noQuestion: "❌ Please provide a question.\n📌 Example:\n- gemini Hi\n- gemini tell me a story",
+        noResponse: "⚠️ No response from Gemini.",
+        apiError: "⚠️ Failed to get a response from Gemini."
+    },
+    vi: {
+        noQuestion: "❌ Vui lòng nhập câu hỏi.\n📌 Ví dụ:\n- gemini Xin chào\n- gemini kể cho tôi một câu chuyện",
+        noResponse: "⚠️ Không có phản hồi từ Gemini.",
+        apiError: "⚠️ Không thể nhận phản hồi từ Gemini."
+    },
+    ar: {
+        noQuestion: "❌ الرجاء إدخال سؤال.\n📌 مثال:\n- gemini مرحبا\n- gemini أخبرني قصة",
+        noResponse: "⚠️ لا يوجد رد من Gemini.",
+        apiError: "⚠️ فشل الحصول على رد من Gemini."
     }
-  }
+};
 
-  // 💬 Handle text input
-  try {
-    const res = await axios.get(`${BASE_API_URL}?ask=${encodeURIComponent(prompt)}`);
-    const reply = res.data?.gemini || getText("noResponse");
-    return api.sendMessage(`🧠 Gemini Says:\n\n${reply}`, event.threadID, event.messageID);
-  } catch (err) {
-    console.error("❌ Gemini Text Error:", err.message);
-    return api.sendMessage("🚫 " + getText("errorAPI"), event.threadID, event.messageID);
-  }
+module.exports.run = async function({ api, event, args, getText }) {
+    const { threadID, messageID, senderName } = event;
+
+    // No question provided
+    if (!args || args.length === 0) {
+        return api.sendMessage(`🛑 ${getText("noQuestion")}`, threadID, messageID);
+    }
+
+    const question = args.join(" ");
+    const geminiUrl = `https://aryan-nix-apis.vercel.app/api/gemini?prompt=${encodeURIComponent(question)}`;
+
+    // Send a typing indicator
+    api.sendMessage(`💬 Gemini AI is thinking... 🤖`, threadID);
+
+    try {
+        const res = await axios.get(geminiUrl);
+        const answer = res?.data?.response || getText("noResponse");
+
+        // Decorated reply
+        const decoratedReply = 
+`🌟 Gemini AI Reply 🌟
+👤 User: ${senderName}
+❓ Question: ${question}
+
+💡 Answer:
+${answer}
+
+✨ Have a great day!`;
+
+        return api.sendMessage(decoratedReply, threadID, messageID);
+
+    } catch (error) {
+        console.error("❌ Gemini API Error:", error?.response?.data || error.message);
+        return api.sendMessage(
+            `⚠️ ${getText("apiError")}\n\nDetails: ${error.message}`,
+            threadID,
+            messageID
+        );
+    }
 };
