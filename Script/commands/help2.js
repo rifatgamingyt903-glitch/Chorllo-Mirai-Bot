@@ -18,7 +18,7 @@ module.exports.languages = {
 ━━━━━━━━━━━━━━━━━━━━
 📌 Total: %2 commands
 📂 Events: %3
-🧑‍💻 Made by: Aminul Sordar`
+🧑‍💻 Made by: Rifat Ahmed 🧃`
   }
 };
 
